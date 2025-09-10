@@ -35,7 +35,6 @@ export default function ChatInterface() {
     setIsLoading(true);
 
     try {
-      console.log('Sending request to API...');
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -49,17 +48,13 @@ export default function ChatInterface() {
         }),
       });
 
-      console.log('Response status:', response.status);
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Response error:', errorText);
         throw new Error(`Failed to get response: ${response.status} - ${errorText}`);
       }
 
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No response body');
-      
-      console.log('Starting to read stream...');
 
       const assistantMessageId = (Date.now() + 1).toString();
       const assistantMessage: Message = {
@@ -74,13 +69,9 @@ export default function ChatInterface() {
       let fullContent = '';
       while (true) {
         const { done, value } = await reader.read();
-        if (done) {
-          console.log('Stream completed. Final content length:', fullContent.length);
-          break;
-        }
+        if (done) break;
 
         const chunk = new TextDecoder().decode(value);
-        console.log('Received chunk:', chunk);
         fullContent += chunk;
         
         setMessages(prev => 
