@@ -72,7 +72,6 @@ export default function ChatInterface() {
         if (done) break;
 
         const chunk = new TextDecoder().decode(value);
-        console.log('Received chunk:', chunk); // Debug log
         fullContent += chunk;
         
         setMessages(prev => 
@@ -83,8 +82,6 @@ export default function ChatInterface() {
           )
         );
       }
-      
-      console.log('Final content:', fullContent); // Debug log
     } catch (error) {
       console.error('Error:', error);
       const errorMessage: Message = {
