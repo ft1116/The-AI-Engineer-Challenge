@@ -35,6 +35,7 @@ export default function ChatInterface() {
     setIsLoading(true);
 
     try {
+      console.log('Sending request to API...');
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
@@ -48,15 +49,21 @@ export default function ChatInterface() {
         }),
       });
 
+      console.log('Response status:', response.status);
       if (!response.ok) {
-        throw new Error('Failed to get response');
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
+        throw new Error(`Failed to get response: ${response.status} - ${errorText}`);
       }
 
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No response body');
+      
+      console.log('Starting to read stream...');
 
+      const assistantMessageId = (Date.now() + 1).toString();
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: assistantMessageId,
         content: '',
         role: 'assistant',
         timestamp: new Date(),
@@ -64,15 +71,22 @@ export default function ChatInterface() {
 
       setMessages(prev => [...prev, assistantMessage]);
 
+      let fullContent = '';
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          console.log('Stream completed. Final content length:', fullContent.length);
+          break;
+        }
 
         const chunk = new TextDecoder().decode(value);
+        console.log('Received chunk:', chunk);
+        fullContent += chunk;
+        
         setMessages(prev => 
           prev.map(msg => 
-            msg.id === assistantMessage.id 
-              ? { ...msg, content: msg.content + chunk }
+            msg.id === assistantMessageId 
+              ? { ...msg, content: fullContent }
               : msg
           )
         );
