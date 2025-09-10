@@ -16,14 +16,14 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         isUser 
           ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white' 
           : isError
-          ? 'bg-red-50 text-red-800 border border-red-200'
-          : 'bg-slate-100 text-slate-800'
-      }`}>
+          ? 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800'
+          : 'bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-600'
+      } shadow-sm transition-colors`}>
         <p className="text-sm leading-relaxed whitespace-pre-wrap">
           {message.content}
         </p>
         <div className={`text-xs mt-2 ${
-          isUser ? 'text-blue-100' : isError ? 'text-red-600' : 'text-slate-500'
+          isUser ? 'text-blue-100' : isError ? 'text-red-600 dark:text-red-400' : 'text-slate-500 dark:text-slate-400'
         }`}>
           {message.timestamp.toLocaleTimeString([], { 
             hour: '2-digit', 
