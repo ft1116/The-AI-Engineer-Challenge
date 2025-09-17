@@ -2,7 +2,7 @@
 
 import LandingHeader from '@/components/LandingHeader';
 
-export default function Home() {
+export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white">
       <LandingHeader />
