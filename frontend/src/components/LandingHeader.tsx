@@ -21,7 +21,7 @@ export default function LandingHeader() {
           {/* Navigation */}
           <nav className="hidden md:flex space-x-8">
             <a
-              href="#"
+              href="/"
               className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
             >
               Home
@@ -37,6 +37,12 @@ export default function LandingHeader() {
               className="text-gray-500 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
             >
               Contact
+            </a>
+            <a
+              href="/chat"
+              className="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              Launch App
             </a>
           </nav>
 
@@ -75,7 +81,7 @@ export default function LandingHeader() {
         <div className="md:hidden" id="mobile-menu">
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t border-gray-200">
             <a
-              href="#"
+              href="/"
               className="text-gray-500 hover:text-gray-900 block px-3 py-2 rounded-md text-base font-medium"
             >
               Home
@@ -91,6 +97,12 @@ export default function LandingHeader() {
               className="text-gray-500 hover:text-gray-900 block px-3 py-2 rounded-md text-base font-medium"
             >
               Contact
+            </a>
+            <a
+              href="/chat"
+              className="bg-blue-600 text-white block px-3 py-2 rounded-md text-base font-medium hover:bg-blue-700"
+            >
+              Launch App
             </a>
           </div>
         </div>

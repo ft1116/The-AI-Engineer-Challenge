@@ -18,9 +18,9 @@ export default function Home() {
               Build the future with AI. Join our community of developers creating innovative solutions.
             </p>
             <div className="space-x-4">
-              <button className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
-                Get Started
-              </button>
+              <a href="/chat" className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-block">
+                Launch Chat App
+              </a>
               <button className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors">
                 Learn More
               </button>
@@ -90,9 +90,9 @@ export default function Home() {
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
             Join thousands of developers already building the future with AI.
           </p>
-          <button className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors">
+          <a href="/chat" className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-block">
             Start Building Now
-          </button>
+          </a>
         </div>
       </section>
 
