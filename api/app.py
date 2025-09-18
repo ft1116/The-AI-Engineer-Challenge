@@ -61,8 +61,11 @@ class SimpleVectorDatabase:
         # Get embedding for query
         client = OpenAI(api_key=api_key)
         try:
+            # Clean the query text to handle Unicode characters properly
+            cleaned_query = query_text.encode('utf-8', errors='ignore').decode('utf-8')
+            
             response = client.embeddings.create(
-                input=query_text,
+                input=cleaned_query,
                 model="text-embedding-3-small"
             )
             query_vector = np.array(response.data[0].embedding)
@@ -146,12 +149,15 @@ async def upload_pdf(file: UploadFile = File(...), api_key: str = Form(...)):
             # Get embeddings for all chunks
             for i, chunk in enumerate(chunks):
                 try:
+                    # Clean the chunk text to handle Unicode characters properly
+                    cleaned_chunk = chunk.encode('utf-8', errors='ignore').decode('utf-8')
+                    
                     response = client.embeddings.create(
-                        input=chunk,
+                        input=cleaned_chunk,
                         model="text-embedding-3-small"
                     )
                     embedding = response.data[0].embedding
-                    vector_db.insert(f"chunk_{i}", embedding, chunk)
+                    vector_db.insert(f"chunk_{i}", embedding, cleaned_chunk)
                 except Exception as e:
                     print(f"Error creating embedding for chunk {i}: {e}")
                     continue
