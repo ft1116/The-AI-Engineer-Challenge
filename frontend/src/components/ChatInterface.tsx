@@ -5,12 +5,25 @@ import MessageBubble from './MessageBubble';
 import InputArea from './InputArea';
 import { Message } from '@/types/chat';
 
+interface DocumentStatus {
+  has_document: boolean;
+  document_name: string | null;
+  vector_count: number;
+}
+
 export default function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [apiKey, setApiKey] = useState('');
-  const [developerMessage] = useState('You are a helpful AI assistant. Provide clear, concise, and accurate responses.');
+  const [documentStatus, setDocumentStatus] = useState<DocumentStatus>({
+    has_document: false,
+    document_name: null,
+    vector_count: 0
+  });
+  const [useRAG, setUseRAG] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -19,6 +32,71 @@ export default function ChatInterface() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Check document status on component mount
+  useEffect(() => {
+    checkDocumentStatus();
+  }, []);
+
+  const checkDocumentStatus = async () => {
+    try {
+      const response = await fetch('/api/document-status');
+      if (response.ok) {
+        const status = await response.json();
+        setDocumentStatus(status);
+      }
+    } catch (error) {
+      console.error('Error checking document status:', error);
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!file.type.includes('pdf')) {
+      alert('Please upload a PDF file');
+      return;
+    }
+
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('api_key', apiKey);
+
+    try {
+      const response = await fetch('/api/upload-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Upload failed');
+      }
+
+      const result = await response.json();
+      await checkDocumentStatus(); // Refresh document status
+      
+      // Add success message to chat
+      const successMessage: Message = {
+        id: Date.now().toString(),
+        content: `✅ PDF "${result.document_name}" uploaded and indexed successfully! (${result.chunks_count} chunks)`,
+        role: 'assistant',
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, successMessage]);
+    } catch (error) {
+      console.error('Upload error:', error);
+      const errorMessage: Message = {
+        id: Date.now().toString(),
+        content: `❌ Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        role: 'assistant',
+        timestamp: new Date(),
+        isError: true,
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || !apiKey.trim()) return;
@@ -40,10 +118,10 @@ export default function ChatInterface() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          developer_message: developerMessage,
           user_message: content,
           model: 'gpt-4o-mini',
           api_key: apiKey,
+          use_rag: useRAG,
         }),
       });
 
@@ -98,19 +176,68 @@ export default function ChatInterface() {
 
   return (
     <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
-      {/* API Key Input */}
+      {/* API Key Input and Controls */}
       <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 p-4 transition-colors">
-        <div className="max-w-md">
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-            OpenAI API Key
-          </label>
-          <input
-            type="password"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="sk-..."
-            className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 text-sm transition-colors"
-          />
+        <div className="space-y-4">
+          {/* API Key Input */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              OpenAI API Key
+            </label>
+            <input
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="sk-..."
+              className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 text-sm transition-colors"
+            />
+          </div>
+
+          {/* PDF Upload Section */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+              Upload PDF Document
+            </label>
+            <div className="flex items-center space-x-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileUpload(file);
+                }}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={!apiKey.trim() || isUploading}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+              >
+                {isUploading ? 'Uploading...' : 'Choose PDF'}
+              </button>
+              {documentStatus.has_document && (
+                <span className="text-sm text-green-600 dark:text-green-400 font-medium">
+                  📄 {documentStatus.document_name} ({documentStatus.vector_count} chunks)
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* RAG Toggle */}
+          <div className="flex items-center space-x-3">
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={useRAG}
+                onChange={(e) => setUseRAG(e.target.checked)}
+                className="w-4 h-4 text-blue-600 bg-slate-100 border-slate-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-slate-800 focus:ring-2 dark:bg-slate-700 dark:border-slate-600"
+              />
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Use RAG (Answer from uploaded document)
+              </span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -123,8 +250,15 @@ export default function ChatInterface() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-slate-700 dark:text-slate-300 mb-2">Start a conversation</h3>
-            <p className="text-slate-500 dark:text-slate-400">Enter your API key above and send your first message</p>
+            <h3 className="text-lg font-medium text-slate-700 dark:text-slate-300 mb-2">AI Chat with RAG</h3>
+            <p className="text-slate-500 dark:text-slate-400 mb-4">
+              Upload a PDF document to chat with it using RAG, or chat normally with the AI
+            </p>
+            <div className="text-sm text-slate-400 dark:text-slate-500 space-y-1">
+              <p>• Enter your OpenAI API key above</p>
+              <p>• Upload a PDF to enable document-based Q&A</p>
+              <p>• Toggle RAG on/off as needed</p>
+            </div>
           </div>
         ) : (
           messages.map((message) => (

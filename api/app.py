@@ -12,12 +12,10 @@ import asyncio
 from typing import Optional, List
 from pathlib import Path
 
-# Import aimakerspace components for RAG functionality
-import sys
-sys.path.append(str(Path(__file__).parent.parent))
-from aimakerspace.text_utils import PDFLoader, CharacterTextSplitter
-from aimakerspace.vectordatabase import VectorDatabase
-from aimakerspace.openai_utils.chatmodel import ChatOpenAI
+# Import required libraries for RAG functionality
+import PyPDF2
+import numpy as np
+from typing import Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 # Initialize FastAPI application with a title
 app = FastAPI(title="OpenAI Chat API with RAG")
@@ -32,8 +30,79 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers in requests
 )
 
+# Simple RAG implementation
+def cosine_similarity(vector_a: np.ndarray, vector_b: np.ndarray) -> float:
+    """Return the cosine similarity between two vectors."""
+    norm_a = np.linalg.norm(vector_a)
+    norm_b = np.linalg.norm(vector_b)
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    dot_product = np.dot(vector_a, vector_b)
+    return float(dot_product / (norm_a * norm_b))
+
+class SimpleVectorDatabase:
+    """Simple in-memory vector store for RAG."""
+    
+    def __init__(self, embedding_model=None):
+        self.vectors: Dict[str, np.ndarray] = {}
+        self.texts: Dict[str, str] = {}
+        self.embedding_model = embedding_model
+    
+    def insert(self, key: str, vector: Iterable[float], text: str) -> None:
+        """Store vector and text with key."""
+        self.vectors[key] = np.asarray(vector, dtype=float)
+        self.texts[key] = text
+    
+    def search_by_text(self, query_text: str, k: int, api_key: str) -> List[str]:
+        """Search for similar texts using OpenAI embeddings."""
+        if not self.vectors:
+            return []
+        
+        # Get embedding for query
+        client = OpenAI(api_key=api_key)
+        try:
+            response = client.embeddings.create(
+                input=query_text,
+                model="text-embedding-3-small"
+            )
+            query_vector = np.array(response.data[0].embedding)
+        except Exception:
+            return []
+        
+        # Calculate similarities
+        scores = []
+        for key, vector in self.vectors.items():
+            similarity = cosine_similarity(query_vector, vector)
+            scores.append((key, similarity))
+        
+        # Sort by similarity and return top k texts
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return [self.texts[key] for key, _ in scores[:k]]
+
+def extract_text_from_pdf(file_path: str) -> str:
+    """Extract text from PDF file."""
+    with open(file_path, 'rb') as file:
+        pdf_reader = PyPDF2.PdfReader(file)
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text() or ""
+    return text
+
+def split_text_into_chunks(text: str, chunk_size: int = 1000, chunk_overlap: int = 200) -> List[str]:
+    """Split text into overlapping chunks."""
+    if chunk_size <= chunk_overlap:
+        raise ValueError("Chunk size must be greater than chunk overlap")
+    
+    step = chunk_size - chunk_overlap
+    chunks = []
+    for i in range(0, len(text), step):
+        chunk = text[i:i + chunk_size]
+        if chunk.strip():  # Only add non-empty chunks
+            chunks.append(chunk.strip())
+    return chunks
+
 # Global variable to store the vector database for RAG
-vector_db: Optional[VectorDatabase] = None
+vector_db: Optional[SimpleVectorDatabase] = None
 uploaded_document_name: Optional[str] = None
 
 # Define the data model for chat requests using Pydantic
@@ -61,20 +130,31 @@ async def upload_pdf(file: UploadFile = File(...), api_key: str = Form(...)):
             tmp_file_path = tmp_file.name
         
         try:
-            # Load PDF using aimakerspace
-            pdf_loader = PDFLoader(tmp_file_path)
-            documents = pdf_loader.load_documents()
+            # Extract text from PDF
+            text = extract_text_from_pdf(tmp_file_path)
             
-            if not documents:
+            if not text.strip():
                 raise HTTPException(status_code=400, detail="No text could be extracted from the PDF")
             
-            # Split documents into chunks
-            text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-            chunks = text_splitter.split_texts(documents)
+            # Split text into chunks
+            chunks = split_text_into_chunks(text, chunk_size=1000, chunk_overlap=200)
             
             # Create vector database and build embeddings
-            vector_db = VectorDatabase()
-            await vector_db.abuild_from_list(chunks)
+            vector_db = SimpleVectorDatabase()
+            client = OpenAI(api_key=api_key)
+            
+            # Get embeddings for all chunks
+            for i, chunk in enumerate(chunks):
+                try:
+                    response = client.embeddings.create(
+                        input=chunk,
+                        model="text-embedding-3-small"
+                    )
+                    embedding = response.data[0].embedding
+                    vector_db.insert(f"chunk_{i}", embedding, chunk)
+                except Exception as e:
+                    print(f"Error creating embedding for chunk {i}: {e}")
+                    continue
             
             uploaded_document_name = file.filename
             
@@ -112,7 +192,7 @@ async def chat(request: ChatRequest):
                     relevant_chunks = vector_db.search_by_text(
                         request.user_message, 
                         k=3, 
-                        return_as_text=True
+                        api_key=request.api_key
                     )
                     
                     if relevant_chunks:
