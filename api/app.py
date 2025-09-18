@@ -24,7 +24,7 @@ app = FastAPI(title="OpenAI Chat API with RAG")
 # This allows the API to be accessed from different domains/origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows requests from any origin
+    allow_origins=["http://localhost:3000", "https://*.vercel.app"],  # Allow localhost and Vercel
     allow_credentials=True,  # Allows cookies to be included in requests
     allow_methods=["*"],  # Allows all HTTP methods (GET, POST, etc.)
     allow_headers=["*"],  # Allows all headers in requests

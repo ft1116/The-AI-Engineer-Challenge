@@ -40,7 +40,8 @@ export default function ChatInterface() {
 
   const checkDocumentStatus = async () => {
     try {
-      const response = await fetch('/api/document-status');
+      const backendUrl = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:8000/api';
+      const response = await fetch(`${backendUrl}/document-status`);
       if (response.ok) {
         const status = await response.json();
         setDocumentStatus(status);
@@ -62,7 +63,9 @@ export default function ChatInterface() {
     formData.append('api_key', apiKey);
 
     try {
-      const response = await fetch('/api/upload-pdf', {
+      // Use the correct backend URL for local development
+      const backendUrl = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:8000/api';
+      const response = await fetch(`${backendUrl}/upload-pdf`, {
         method: 'POST',
         body: formData,
       });
@@ -112,7 +115,8 @@ export default function ChatInterface() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/chat', {
+      const backendUrl = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:8000/api';
+      const response = await fetch(`${backendUrl}/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -189,7 +193,7 @@ export default function ChatInterface() {
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="sk-..."
-              className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 text-sm transition-colors"
+              className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-orange-50 dark:bg-orange-900/20 text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 text-sm transition-colors"
             />
           </div>
 
