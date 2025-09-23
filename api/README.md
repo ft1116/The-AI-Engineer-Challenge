@@ -35,7 +35,7 @@ python app.py
 
 The server will start on `http://localhost:8000`
 
-## API Endpoints
+## API Endpoints.
 
 ### Chat Endpoint
 - **URL**: `/api/chat`
